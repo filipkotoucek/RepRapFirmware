@@ -13,7 +13,6 @@
 #include "GCodeQueue.h"
 #include "Heating/Heat.h"
 #include "Movement/Move.h"
-#include "Network.h"
 #include "Scanner.h"
 #include "PrintMonitor.h"
 #include "RepRap.h"
@@ -21,6 +20,10 @@
 #include "FilamentMonitors/FilamentMonitor.h"
 #include "Libraries/General/IP4String.h"
 #include "Version.h"
+
+#if !defined(EINSY)
+#include "Network.h"
+#endif
 
 #if SUPPORT_IOBITS
 # include "PortControl.h"
@@ -2669,7 +2672,7 @@ bool GCodes::HandleMcode(GCodeBuffer& gb, const StringRef& reply)
 			}
 		}
 		break;
-
+#ifdef NETWORK_CAPABLE
 	case 540: // Set/report MAC address
 		{
 			const unsigned int interface = (gb.Seen('I') ? gb.GetUIValue() : 0);
@@ -2693,7 +2696,7 @@ bool GCodes::HandleMcode(GCodeBuffer& gb, const StringRef& reply)
 			}
 		}
 		break;
-
+#endif
 	case 550: // Set/report machine name
 		{
 			String<MACHINE_NAME_LENGTH> name;
@@ -2721,7 +2724,7 @@ bool GCodes::HandleMcode(GCodeBuffer& gb, const StringRef& reply)
 			}
 		}
 		break;
-
+#ifdef NETWORK_CAPABLE
 	case 552: // Enable/Disable network and/or Set/Get IP address
 		{
 			bool seen = false;
@@ -2778,7 +2781,7 @@ bool GCodes::HandleMcode(GCodeBuffer& gb, const StringRef& reply)
 			}
 		}
 		break;
-
+#endif
 	case 553: // Set/Get netmask
 		if (gb.Seen('P'))
 		{
@@ -3443,7 +3446,7 @@ bool GCodes::HandleMcode(GCodeBuffer& gb, const StringRef& reply)
 	case 585: // Probe Tool
 		result = ProbeTool(gb, reply);
 		break;
-
+#ifdef NETWORK_CAPABLE
 	case 586: // Configure network protocols
 		{
 			const unsigned int interface = (gb.Seen('I') ? gb.GetUIValue() : 0);
@@ -3473,7 +3476,7 @@ bool GCodes::HandleMcode(GCodeBuffer& gb, const StringRef& reply)
 			}
 		}
 		break;
-
+#endif
 #if HAS_WIFI_NETWORKING
 	case 587:	// Add WiFi network or list remembered networks
 	case 588:	// Forget WiFi network

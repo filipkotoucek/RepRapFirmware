@@ -1,10 +1,10 @@
 #ifndef MASSSTORAGE_H
 #define MASSSTORAGE_H
 
+#include <Libraries/Fatfs_mod/ff.h>
 #include "RepRapFirmware.h"
 #include "Pins.h"
 #include "FileWriteBuffer.h"
-#include "Libraries/Fatfs/ff.h"
 #include "GCodes/GCodeResult.h"
 #include "FileStore.h"
 #include <ctime>

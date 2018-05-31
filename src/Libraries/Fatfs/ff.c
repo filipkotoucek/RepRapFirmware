@@ -519,7 +519,7 @@ static WCHAR LfnBuf[_MAX_LFN+1];
 #endif
 
 
-//void debugPrintf(const char*, ...);
+
 
 /*--------------------------------------------------------------------------
 
@@ -527,25 +527,11 @@ static WCHAR LfnBuf[_MAX_LFN+1];
 
 ---------------------------------------------------------------------------*/
 
-// Function to check whether a buffer pointer is 32-bit aligned.
-// If it isn't then we must not do direct sector reads/writes, because the DMA controller used for HSMCI transfers doesn't do unaligned memory accesses.
-inline _Bool isAligned(const BYTE *p)
-{
-	return ((unsigned int)p & 3) == 0;
-}
 
 /*-----------------------------------------------------------------------*/
 /* String functions                                                      */
 /*-----------------------------------------------------------------------*/
 
-#if 1
-
-#include "string.h"
-#define mem_cpy(_dst, _src, _count) memcpy(_dst, _src, _count)
-#define mem_set(_dst, _val, _count) memset(_dst, _val, _count)
-#define mem_cmp(_dst, _src, _count) memcmp(_dst, _src, _count)
-
-#else
 /* Copy memory to memory */
 static
 void mem_cpy (void* dst, const void* src, UINT cnt) {
@@ -581,7 +567,6 @@ int mem_cmp (const void* dst, const void* src, UINT cnt) {
 	while (cnt-- && (r = *d++ - *s++) == 0) ;
 	return r;
 }
-#endif
 
 /* Check if chr is contained in the string */
 static
@@ -929,7 +914,6 @@ static FRESULT put_fat (
 
 		default :
 			res = FR_INT_ERR;
-			break;
 		}
 		fs->wflag = 1;
 	}
@@ -1070,7 +1054,7 @@ DWORD clmt_clust (	/* <2:Error, >=2:Cluster number */
 	tbl = fp->cltbl + 1;	/* Top of CLMT */
 	cl = ofs / SS(fp->fs) / fp->fs->csize;	/* Cluster order from top of the file */
 	for (;;) {
-		ncl = *tbl++;			/* Number of clusters in the fragment */
+		ncl = *tbl++;			/* Number of cluters in the fragment */
 		if (!ncl) return 0;		/* End of table? (error) */
 		if (cl < ncl) break;	/* In this fragment? */
 		cl -= ncl; tbl++;		/* Next fragment */
@@ -1143,7 +1127,7 @@ FRESULT dir_next (	/* FR_OK:Succeeded, FR_NO_FILE:End of table, FR_DENIED:EOT an
 	WORD i;
 
 
-	//stretch = stretch;		/* To suppress warning on read-only cfg. */
+	stretch = stretch;		/* To suppress warning on read-only cfg. */
 	i = dj->index + 1;
 	if (!i || !dj->sect)	/* Report EOT when index has reached 65535 */
 		return FR_NO_FILE;
@@ -1885,7 +1869,7 @@ void get_fileinfo (		/* No return code */
 #endif
 			*p++ = c;
 		}
-		if (dir[8] != ' ') { 	/* Copy name extension */
+		if (dir[8] != ' ') {		/* Copy name extension */
 			*p++ = '.';
 			for (i = 8; i < 11; i++) {
 				c = dir[i];
@@ -1900,7 +1884,6 @@ void get_fileinfo (		/* No return code */
 				*p++ = c;
 			}
 		}
-
 		fno->fattrib = dir[DIR_Attr];				/* Attribute */
 		fno->fsize = LD_DWORD(dir+DIR_FileSize);	/* Size */
 		fno->fdate = LD_WORD(dir+DIR_WrtDate);		/* Date */
@@ -1930,7 +1913,6 @@ void get_fileinfo (		/* No return code */
 		tp[i] = 0;	/* Terminate the LFN str by a \0 */
 	}
 #endif
-
 }
 #endif /* _FS_MINIMIZE <= 1 */
 
@@ -2408,6 +2390,7 @@ FRESULT f_read (
 	UINT rcnt, cc;
 	BYTE csect, *rbuff = buff;
 
+
 	*br = 0;	/* Initialize byte counter */
 
 	res = validate(fp->fs, fp->id);				/* Check validity */
@@ -2423,7 +2406,7 @@ FRESULT f_read (
 		rbuff += rcnt, fp->fptr += rcnt, *br += rcnt, btr -= rcnt) {
 		if ((fp->fptr % SS(fp->fs)) == 0) {		/* On the sector boundary? */
 			csect = (BYTE)(fp->fptr / SS(fp->fs) & (fp->fs->csize - 1));	/* Sector offset in the cluster */
-			if (csect == 0) {					/* On the cluster boundary? */
+			if (!csect) {						/* On the cluster boundary? */
 				if (fp->fptr == 0) {			/* On the top of the file? */
 					clst = fp->sclust;			/* Follow from the origin */
 				} else {						/* Middle or end of the file */
@@ -2442,7 +2425,7 @@ FRESULT f_read (
 			if (!sect) ABORT(fp->fs, FR_INT_ERR);
 			sect += csect;
 			cc = btr / SS(fp->fs);				/* When remaining bytes >= sector size, */
-			if (cc != 0 && isAligned(rbuff)) {	/* Read maximum contiguous sectors directly */
+			if (cc) {							/* Read maximum contiguous sectors directly */
 				if (csect + cc > fp->fs->csize)	/* Clip at cluster boundary */
 					cc = fp->fs->csize - csect;
 				if (disk_read(fp->fs->drv, rbuff, sect, (BYTE)cc) != RES_OK)
@@ -2459,7 +2442,6 @@ FRESULT f_read (
 				rcnt = SS(fp->fs) * cc;			/* Number of bytes transferred */
 				continue;
 			}
-//			else if (cc > 1) { debugPrintf("Unaligned read\n"); }
 #if !_FS_TINY
 			if (fp->dsect != sect) {			/* Load data sector if not in cache */
 #if !_FS_READONLY
@@ -2510,6 +2492,7 @@ FRESULT f_write (
 	const BYTE *wbuff = buff;
 	BYTE csect;
 
+
 	*bw = 0;	/* Initialize byte counter */
 
 	res = validate(fp->fs, fp->id);			/* Check validity */
@@ -2524,7 +2507,7 @@ FRESULT f_write (
 		wbuff += wcnt, fp->fptr += wcnt, *bw += wcnt, btw -= wcnt) {
 		if ((fp->fptr % SS(fp->fs)) == 0) {	/* On the sector boundary? */
 			csect = (BYTE)(fp->fptr / SS(fp->fs) & (fp->fs->csize - 1));	/* Sector offset in the cluster */
-			if (csect == 0) {				/* On the cluster boundary? */
+			if (!csect) {					/* On the cluster boundary? */
 				if (fp->fptr == 0) {		/* On the top of the file? */
 					clst = fp->sclust;		/* Follow from the origin */
 					if (clst == 0)			/* When no cluster is allocated, */
@@ -2556,7 +2539,7 @@ FRESULT f_write (
 			if (!sect) ABORT(fp->fs, FR_INT_ERR);
 			sect += csect;
 			cc = btw / SS(fp->fs);			/* When remaining bytes >= sector size, */
-			if (cc != 0 && isAligned(wbuff)) {	/* Write maximum contiguous sectors directly */
+			if (cc) {						/* Write maximum contiguous sectors directly */
 				if (csect + cc > fp->fs->csize)	/* Clip at cluster boundary */
 					cc = fp->fs->csize - csect;
 				if (disk_write(fp->fs->drv, wbuff, sect, (BYTE)cc) != RES_OK)
@@ -2575,7 +2558,6 @@ FRESULT f_write (
 				wcnt = SS(fp->fs) * cc;		/* Number of bytes transferred */
 				continue;
 			}
-//			else if (cc > 1) { debugPrintf("Unaligned write\n"); }	//DEBUG
 #if _FS_TINY
 			if (fp->fptr >= fp->fsize) {	/* Avoid silly cache filling at growing edge */
 				if (move_window(fp->fs, 0)) ABORT(fp->fs, FR_DISK_ERR);
@@ -2982,7 +2964,7 @@ FRESULT f_lseek (
 
 #if _FS_MINIMIZE <= 1
 /*-----------------------------------------------------------------------*/
-/* Create a Directory Object                                             */
+/* Create a Directroy Object                                             */
 /*-----------------------------------------------------------------------*/
 
 FRESULT f_opendir (
@@ -3022,7 +3004,7 @@ FRESULT f_opendir (
 
 
 /*-----------------------------------------------------------------------*/
-/* Read Directory Entry in Sequence                                      */
+/* Read Directory Entry in Sequense                                      */
 /*-----------------------------------------------------------------------*/
 
 FRESULT f_readdir (
@@ -3032,6 +3014,7 @@ FRESULT f_readdir (
 {
 	FRESULT res;
 	DEF_NAMEBUF;
+
 
 	res = validate(dj->fs, dj->id);			/* Check validity of the object */
 	if (res == FR_OK) {
@@ -3680,7 +3663,7 @@ FRESULT f_mkfs (
 	switch (fmt) {	/* Determine system ID for partition table */
 	case FS_FAT12:	sys = 0x01; break;
 	case FS_FAT16:	sys = (n_vol < 0x10000) ? 0x04 : 0x06; break;
-	default: 		sys = 0x0C; break;
+	default: 		sys = 0x0C;
 	}
 
 	if (_MULTI_PARTITION && part) {

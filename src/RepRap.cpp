@@ -3,13 +3,16 @@
 #include "Movement/Move.h"
 #include "GCodes/GCodes.h"
 #include "Heating/Heat.h"
-#include "Network.h"
 #include "Platform.h"
 #include "Scanner.h"
 #include "PrintMonitor.h"
 #include "Tools/Tool.h"
 #include "Tools/Filament.h"
 #include "Version.h"
+
+#if !defined(EINSY)
+#include "Network.h"
+#endif
 
 #ifdef DUET_NG
 # include "DueXn.h"
@@ -30,11 +33,12 @@
 // Callback function from the hsmci driver, called while it is waiting for an SD card operation to complete
 extern "C" void hsmciIdle()
 {
+#ifdef NETWORK_CAPABLE
 	if (reprap.GetSpinningModule() != moduleNetwork)
 	{
 		reprap.GetNetwork().Spin(false);
 	}
-
+#endif
 #if SUPPORT_IOBITS
 	if (reprap.GetSpinningModule() != modulePortControl)
 	{
@@ -73,7 +77,9 @@ RepRap::RepRap() : toolList(nullptr), currentTool(nullptr), lastWarningMillis(0)
 {
 	OutputBuffer::Init();
 	platform = new Platform();
+#ifdef NETWORK_CAPABLE
 	network = new Network(*platform);
+#endif
 	gCodes = new GCodes(*platform);
 	move = new Move();
 	heat = new Heat(*platform);
@@ -101,7 +107,9 @@ void RepRap::Init()
 {
 	// All of the following init functions must execute reasonably quickly before the watchdog times us out
 	platform->Init();
+#ifdef NETWORK_CAPABLE
 	network->Init();
+#endif
 	SetName(DEFAULT_MACHINE_NAME);		// network must be initialised before calling this because this calls SetHostName
 	gCodes->Init();
 	move->Init();
@@ -150,10 +158,10 @@ void RepRap::Init()
 		platform->Message(UsbMessage, "Error, not found\n");
 	}
 	processingConfig = false;
-
+#ifdef NETWORK_CAPABLE
 	// Enable network (unless it's disabled)
 	network->Activate();			// Need to do this here, as the configuration GCodes may set IP address etc.
-
+#endif
 #if HAS_HIGH_SPEED_SD
 	hsmci_set_idle_func(hsmciIdle);
 #endif
@@ -181,7 +189,9 @@ void RepRap::Exit()
 #if SUPPORT_12864_LCD
  	display->Exit();
 #endif
+#ifdef NETWORK_CAPABLE
 	network->Exit();
+#endif
 	platform->Exit();
 }
 
@@ -195,12 +205,13 @@ void RepRap::Spin()
 	platform->Spin();
 
 	ticksInSpinState = 0;
+#ifdef NETWORK_CAPABLE
 	spinningModule = moduleNetwork;
 	network->Spin(true);
 
 	ticksInSpinState = 0;
 	spinningModule = moduleWebserver;
-
+#endif
 	ticksInSpinState = 0;
 	spinningModule = moduleGcodes;
 	gCodes->Spin();
@@ -297,7 +308,9 @@ void RepRap::Diagnostics(MessageType mtype)
 	move->Diagnostics(mtype);
 	heat->Diagnostics(mtype);
 	gCodes->Diagnostics(mtype);
+#ifdef NETWORK_CAPABLE
 	network->Diagnostics(mtype);
+#endif
 	FilamentMonitor::Diagnostics(mtype);
 #ifdef DUET_NG
 	DuetExpansion::Diagnostics(mtype);
@@ -749,13 +762,13 @@ OutputBuffer *RepRap::GetStatusResponse(uint8_t type, ResponseSource source)
 		response->cat((ch == '[') ? "[]" : "]");
 		response->catf(",\"babystep\":%.03f}", (double)gCodes->GetBabyStepOffset());
 	}
-
+#ifdef NETWORK_CAPABLE
 	// G-code reply sequence for webserver (sequence number for AUX is handled later)
 	if (source == ResponseSource::HTTP)
 	{
 		response->catf(",\"seq\":%" PRIu32, network->GetHttpReplySeq());
 	}
-
+#endif
 	/* Sensors */
 	{
 		response->cat(",\"sensors\":{");
@@ -1753,9 +1766,10 @@ void RepRap::SetName(const char* nm)
 {
 	// Users sometimes put a tab character between the machine name and the comment, so allow for this
 	myName.copy(nm);
-
+#ifdef NETWORK_CAPABLE
 	// Set new DHCP hostname
 	network->SetHostname(myName.c_str());
+#endif
 }
 
 // Given that we want to extrude/retract the specified extruder drives, check if they are allowed.

@@ -20,8 +20,11 @@
 #include "GCodes/GCodeBuffer.h"
 
 const char * const Kinematics::HomeAllFileName = "homeall.g";
+#if defined(EINSY)
+const char * const Kinematics::StandardHomingFileNames[] = AXES_("homex.g", "homey.g", "homez.g", "homeu.g", "homev.g");
+#else
 const char * const Kinematics::StandardHomingFileNames[] = AXES_("homex.g", "homey.g", "homez.g", "homeu.g", "homev.g", "homew.g", "homea.g", "homeb.g", "homec.g");
-
+#endif
 // Constructor. Pass segsPerSecond <= 0.0 to get non-segmented kinematics.
 Kinematics::Kinematics(KinematicsType t, float segsPerSecond, float minSegLength, bool doUseRawG0)
 	: segmentsPerSecond(segsPerSecond), minSegmentLength(minSegLength), useSegmentation(segsPerSecond > 0.0), useRawG0(doUseRawG0), type(t)

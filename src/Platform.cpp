@@ -24,7 +24,7 @@
 #include "Heating/Heat.h"
 #include "Movement/DDA.h"
 #include "Movement/Move.h"
-#include "Network.h"
+
 #include "PrintMonitor.h"
 #include "FilamentMonitors/FilamentMonitor.h"
 #include "RepRap.h"
@@ -40,10 +40,14 @@
 
 #include "sd_mmc.h"
 
-#if defined(DUET_NG)
+#if defined(DUET_NG) || defined(EINSY)
 # include "TMC2660.h"
 #elif defined(DUET_M)
 # include "TMC22xx.h"
+#endif
+
+#if !defined(EINSY)
+#include "Network.h"
 #endif
 
 #if HAS_WIFI_NETWORKING
@@ -362,9 +366,11 @@ void Platform::Init()
 	// File management
 	massStorage->Init();
 
+#ifdef NETWORK_CAPABLE
 	ARRAY_INIT(ipAddress, DefaultIpAddress);
 	ARRAY_INIT(netMask, DefaultNetMask);
 	ARRAY_INIT(gateWay, DefaultGateway);
+#endif
 
 #if SAM4E || SAM4S || SAME70
 	// Read the unique ID of the MCU
@@ -467,7 +473,9 @@ void Platform::Init()
 	// Disable parallel writes to all pins. We re-enable them for the step pins.
 	PIOA->PIO_OWDR = 0xFFFFFFFF;
 	PIOB->PIO_OWDR = 0xFFFFFFFF;
+#ifdef PIOC
 	PIOC->PIO_OWDR = 0xFFFFFFFF;
+#endif
 #ifdef PIOD
 	PIOD->PIO_OWDR = 0xFFFFFFFF;
 #endif
@@ -1165,7 +1173,9 @@ void Platform::UpdateFirmware()
 	// Disable all PIO IRQs, because the core assumes they are all disabled when setting them up
 	PIOA->PIO_IDR = 0xFFFFFFFF;
 	PIOB->PIO_IDR = 0xFFFFFFFF;
+#ifdef PIOC
 	PIOC->PIO_IDR = 0xFFFFFFFF;
+#endif
 #ifdef PIOD
 	PIOD->PIO_IDR = 0xFFFFFFFF;
 #endif
@@ -1279,11 +1289,14 @@ void Platform::SetEmulating(Compatibility c)
 
 void Platform::UpdateNetworkAddress(uint8_t dst[4], const uint8_t src[4])
 {
+#ifdef NETWORK_CAPABLE
 	for (uint8_t i = 0; i < 4; i++)
 	{
 		dst[i] = src[i];
 	}
 	reprap.GetNetwork().SetEthernetIPAddress(ipAddress, gateWay, netMask);
+#endif
+	return;
 }
 
 void Platform::SetIPAddress(uint8_t ip[])
@@ -1852,7 +1865,7 @@ void Platform::SoftwareReset(uint16_t reason, const uint32_t *stk)
 		size_t slot = SoftwareResetData::numberOfSlots;
 		SoftwareResetData srdBuf[SoftwareResetData::numberOfSlots];
 
-#if SAM4E || SAM4S || SAME70
+#if SAM4E || SAM4S || SAME70 || SAMG55
 		if (flash_read_user_signature(reinterpret_cast<uint32_t*>(srdBuf), sizeof(srdBuf)/sizeof(uint32_t)) == FLASH_RC_OK)
 #elif SAM3XA
 		DueFlashStorage::read(SoftwareResetData::nvAddress, srdBuf, sizeof(srdBuf));
@@ -1869,7 +1882,7 @@ void Platform::SoftwareReset(uint16_t reason, const uint32_t *stk)
 		if (slot == SoftwareResetData::numberOfSlots)
 		{
 			// No free slots, so erase the area
-#if SAM4E || SAM4S || SAME70
+#if SAM4E || SAM4S || SAME70 || SAMG55
 			flash_erase_user_signature();
 #endif
 			memset(srdBuf, 0xFF, sizeof(srdBuf));
@@ -1893,7 +1906,7 @@ void Platform::SoftwareReset(uint16_t reason, const uint32_t *stk)
 		}
 
 		// Save diagnostics data to Flash
-#if SAM4E || SAM4S || SAME70
+#if SAM4E || SAM4S || SAME70 || SAMG55
 		flash_write_user_signature(srdBuf, sizeof(srdBuf)/sizeof(uint32_t));
 #else
 		DueFlashStorage::write(SoftwareResetData::nvAddress, srdBuf, sizeof(srdBuf));
@@ -1944,6 +1957,8 @@ void Platform::InitialiseInterrupts()
 	NVIC_SetPriority(UART1_IRQn, NvicPriorityWiFiUart);			// set priority for WiFi UART interrupt
 #elif SAM4S
 	NVIC_SetPriority(UART1_IRQn, NvicPriorityPanelDueUart);		// set priority for UART interrupt
+#elif SAMG55
+	NVIC_SetPriority(FLEXCOM1_IRQn, NvicPriorityPanelDueUart);		// set priority for UART interrupt
 #else
 	NVIC_SetPriority(UART_IRQn, NvicPriorityPanelDueUart);		// set priority for UART interrupt
 #endif
@@ -1962,7 +1977,7 @@ void Platform::InitialiseInterrupts()
 	pmc_enable_periph_clk(STEP_TC_ID);
 	tc_init(STEP_TC, STEP_TC_CHAN, TC_CMR_WAVE | TC_CMR_WAVSEL_UP | TC_CMR_TCCLKS_TIMER_CLOCK4 | TC_CMR_EEVT_XC0);	// must set TC_CMR_EEVT nonzero to get RB compare interrupts
 	STEP_TC->TC_CHANNEL[STEP_TC_CHAN].TC_IDR = ~(uint32_t)0; // interrupts disabled for now
-#if SAM4S || SAME70		// if 16-bit TCs
+#if SAM4S || SAME70 || SAMG55		// if 16-bit TCs
 	STEP_TC->TC_CHANNEL[STEP_TC_CHAN].TC_IER = TC_IER_COVFS;	// enable the overflow interrupt so that we can use it to extend the count to 32-bits
 #endif
 	tc_start(STEP_TC, STEP_TC_CHAN);
@@ -1999,7 +2014,9 @@ void Platform::InitialiseInterrupts()
 
 	NVIC_SetPriority(PIOA_IRQn, NvicPriorityPins);
 	NVIC_SetPriority(PIOB_IRQn, NvicPriorityPins);
+#ifdef ID_PIOC
 	NVIC_SetPriority(PIOC_IRQn, NvicPriorityPins);
+#endif
 #ifdef ID_PIOD
 	NVIC_SetPriority(PIOD_IRQn, NvicPriorityPins);
 #endif
@@ -2009,7 +2026,7 @@ void Platform::InitialiseInterrupts()
 
 #if SAME70
 	NVIC_SetPriority(USBHS_IRQn, NvicPriorityUSB);
-#elif SAM4E || SAM4S
+#elif SAM4E || SAM4S || SAMG55
 	NVIC_SetPriority(UDP_IRQn, NvicPriorityUSB);
 #elif SAM3XA
 	NVIC_SetPriority(UOTGHS_IRQn, NvicPriorityUSB);
@@ -2141,7 +2158,7 @@ void Platform::Diagnostics(MessageType mtype)
 	const char *ramstart =
 #if SAME70
 			(char *) 0x20400000;
-#elif SAM4E || SAM4S
+#elif SAM4E || SAM4S || SAMG55
 			(char *) 0x20000000;
 #elif SAM3XA
 			(char *) 0x20070000;
@@ -2178,7 +2195,7 @@ void Platform::Diagnostics(MessageType mtype)
 		memset(srdBuf, 0, sizeof(srdBuf));
 		int slot = -1;
 
-#if SAM4E || SAM4S || SAME70
+#if SAM4E || SAM4S || SAME70 || SAMG55
 		// Work around bug in ASF flash library: flash_read_user_signature calls a RAMFUNC without disabling interrupts first.
 		// This caused a crash (watchdog timeout) sometimes if we run M122 while a print is in progress
 		const irqflags_t flags = cpu_irq_save();
@@ -2504,7 +2521,7 @@ bool Platform::DiagnosticTest(GCodeBuffer& gb, const StringRef& reply, int d)
 		// FIXME: The SAME70 provides an MPU, maybe we should configure it as well?
 		// I guess this can wait until we have the RTOS working though.
 		Message(WarningMessage, "There is no abort area on the SAME70");
-#elif SAM4E || SAM4S
+#elif SAM4E || SAM4S || SAMG55
 		(void)*(reinterpret_cast<const volatile char*>(0x20800000));
 #elif SAM3XA
 		(void)*(reinterpret_cast<const volatile char*>(0x20200000));
@@ -3496,7 +3513,7 @@ void Platform::RawMessage(MessageType type, const char *message)
 	{
 		AppendAuxReply(message, (message[0] == '{')  || (type & RawMessageFlag) != 0);
 	}
-
+#ifdef NETWORK_CAPABLE
 	if ((type & HttpMessage) != 0)
 	{
 		reprap.GetNetwork().HandleHttpGCodeReply(message);
@@ -3506,7 +3523,7 @@ void Platform::RawMessage(MessageType type, const char *message)
 	{
 		reprap.GetNetwork().HandleTelnetGCodeReply(message);
 	}
-
+#endif
 	if ((type & AuxMessage) != 0)
 	{
 #ifdef SERIAL_AUX2_DEVICE
@@ -3612,7 +3629,7 @@ void Platform::Message(const MessageType type, OutputBuffer *buffer)
 		{
 			AppendAuxReply(buffer, ((*buffer)[0] == '{') || (type & RawMessageFlag) != 0);
 		}
-
+#ifdef NETWORK_CAPABLE
 		if ((type & HttpMessage) != 0)
 		{
 			reprap.GetNetwork().HandleHttpGCodeReply(buffer);
@@ -3622,7 +3639,7 @@ void Platform::Message(const MessageType type, OutputBuffer *buffer)
 		{
 			reprap.GetNetwork().HandleTelnetGCodeReply(buffer);
 		}
-
+#endif
 #ifdef SERIAL_AUX2_DEVICE
 		if ((type & AuxMessage) != 0)
 		{
@@ -3929,6 +3946,8 @@ void Platform::SetBoardType(BoardType bt)
 		}
 #elif defined(DUET_M)
 		board = BoardType::DuetM_10;
+#elif defined(EINSY)
+		board = BoardType::Einsy_20;
 #elif defined(DUET_06_085)
 		// Determine whether this is a Duet 0.6 or a Duet 0.8.5 board.
 		// If it is a 0.85 board then DAC0 (AKA digital pin 67) is connected to ground via a diode and a 2.15K resistor.
@@ -3972,6 +3991,8 @@ const char* Platform::GetElectronicsString() const
 	case BoardType::DuetEthernet_102:		return "Duet Ethernet 1.02 or later";
 #elif defined(DUET_M)
 	case BoardType::DuetM_10:				return "Duet Maestro 1.0";
+#elif defined(EINSY)
+	case BoardType::Einsy_20:				return "Einsy 2.0";
 #elif defined(DUET_06_085)
 	case BoardType::Duet_06:				return "Duet 0.6";
 	case BoardType::Duet_07:				return "Duet 0.7";
@@ -4001,6 +4022,8 @@ const char* Platform::GetBoardString() const
 	case BoardType::DuetEthernet_102:		return "duetethernet102";
 #elif defined(DUET_M)
 	case BoardType::DuetM_10:				return "duetmaestro100";
+#elif defined(EINSY)
+	case BoardType::Einsy_20:				return "einsy20";
 #elif defined(DUET_06_085)
 	case BoardType::Duet_06:				return "duet06";
 	case BoardType::Duet_07:				return "duet07";

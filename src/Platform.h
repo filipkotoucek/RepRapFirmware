@@ -30,16 +30,17 @@ Licence: GPL
 
 #include "RepRapFirmware.h"
 #include "IoPorts.h"
-#include "DueFlashStorage.h"
+
 #include "Fan.h"
 #include "Heating/TemperatureError.h"
 #include "OutputMemory.h"
-#include "Storage/FileStore.h"
-#include "Storage/FileData.h"
-#include "Storage/MassStorage.h"	// must be after Pins.h because it needs NumSdCards defined
 #include "MessageType.h"
 #include "ZProbe.h"
 #include "ZProbeProgrammer.h"
+#include "Storage/FileStore.h"
+#include "Storage/FileData.h"
+#include "Storage/MassStorage.h"	// must be after Pins.h because it needs NumSdCards defined
+
 
 #if defined(DUET_NG)
 # include "DueXn.h"
@@ -83,16 +84,26 @@ const int INKJET_DELAY_MICROSECONDS = 800;				// How long to wait before the nex
 
 #endif
 
+#if defined(EINSY)	//TODO: move this config to board dependent configuration
+const float MAX_FEEDRATES[DRIVES] = DRIVES_(100.0, 100.0, 3.0, 20.0, 20.0);							// mm/sec
+const float ACCELERATIONS[DRIVES] = DRIVES_(500.0, 500.0, 20.0, 250.0, 250.0);						// mm/sec^2
+const float DRIVE_STEPS_PER_UNIT[DRIVES] = DRIVES_(87.4890, 87.4890, 4000.0, 420.0, 420.0);			// steps/mm
+const float INSTANT_DVS[DRIVES] = DRIVES_(15.0, 15.0, 0.2, 2.0, 2.0);								// mm/sec
+#else
 const float MAX_FEEDRATES[DRIVES] = DRIVES_(100.0, 100.0, 3.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0);							// mm/sec
 const float ACCELERATIONS[DRIVES] = DRIVES_(500.0, 500.0, 20.0, 250.0, 250.0, 250.0, 250.0, 250.0, 250.0, 250.0, 250.0, 250.0);					// mm/sec^2
 const float DRIVE_STEPS_PER_UNIT[DRIVES] = DRIVES_(87.4890, 87.4890, 4000.0, 420.0, 420.0, 420.0, 420.0, 420.0, 420.0, 420.0, 420.0, 420.0);	// steps/mm
 const float INSTANT_DVS[DRIVES] = DRIVES_(15.0, 15.0, 0.2, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0);										// mm/sec
-
+#endif
 // AXES
 
+#if defined(EINSY)	//TODO: move this config to board dependent configuration
+const float AXIS_MINIMA[MaxAxes] = AXES_(0.0, 0.0, 0.0, 0.0, 0.0);				// mm
+const float AXIS_MAXIMA[MaxAxes] = AXES_(230.0, 210.0, 200.0, 0.0, 0.0);		// mm
+#else
 const float AXIS_MINIMA[MaxAxes] = AXES_(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);				// mm
 const float AXIS_MAXIMA[MaxAxes] = AXES_(230.0, 210.0, 200.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);		// mm
-
+#endif
 // Z PROBE
 
 constexpr float Z_PROBE_STOP_HEIGHT = 0.7;						// Millimetres
@@ -118,6 +129,8 @@ enum class BoardType : uint8_t
 	DuetWiFi_102 = 2,
 	DuetEthernet_10 = 3,
 	DuetEthernet_102 = 4
+#elif defined(EINSY)
+	Einsy_20 = 1
 #elif defined(DUET_M)
 	DuetM_10 = 1,
 #elif defined(DUET_06_085)
@@ -366,7 +379,6 @@ public:
 
 	MassStorage* GetMassStorage() const;
 	FileStore* OpenFile(const char* directory, const char* fileName, OpenMode mode) { return massStorage->OpenFile(directory, fileName, mode); }
-
 	const char* GetWebDir() const; 					// Where the html etc files are
 	const char* GetGCodeDir() const; 				// Where the gcodes are
 	const char* GetSysDir() const;  				// Where the system files are
@@ -675,7 +687,7 @@ private:
 		}
 	};
 
-#if SAM4E || SAM4S || SAME70
+#if SAM4E || SAM4S || SAME70 || SAMG55
 	static_assert(SoftwareResetData::numberOfSlots * sizeof(SoftwareResetData) <= 512, "Can't fit software reset data in user signature area");
 #else
 	static_assert(SoftwareResetData::numberOfSlots * sizeof(SoftwareResetData) <= FLASH_DATA_LENGTH, "NVData too large");
@@ -832,7 +844,7 @@ private:
 
 	// Files
 	MassStorage* massStorage;
-  
+
 	// Data used by the tick interrupt handler
 
 	// Heater #n, 0 <= n < HEATERS, uses "temperature channel" tc given by
@@ -916,6 +928,7 @@ private:
 	bool i2cInitialised;								// true if the I2C subsystem has been initialised
 };
 
+
 // Where the htm etc files are
 inline const char* Platform::GetWebDir() const
 {
@@ -948,7 +961,6 @@ inline const char* Platform::GetDefaultFile() const
 {
 	return DEFAULT_FILE;
 }
-
 //*****************************************************************************************************************
 
 // Drive the RepRap machine - Movement
@@ -1249,6 +1261,8 @@ inline OutputBuffer *Platform::GetAuxGCodeReply()
 	const PinDescription& pinDesc = g_APinDescription[STEP_PINS[driver]];
 #if defined(DUET_NG)
 	return pinDesc.ulPin;
+#elif defined(EINSY)
+	return pinDesc.ulPin;
 #elif defined(DUET_M)
 	return pinDesc.ulPin;
 #elif defined(DUET_06_085)
@@ -1272,6 +1286,8 @@ inline OutputBuffer *Platform::GetAuxGCodeReply()
 	// TBD
 #elif defined(DUET_NG)
 	PIOD->PIO_ODSR = driverMap;				// on Duet WiFi all step pins are on port D
+#elif defined(EINSY)
+	PIOB->PIO_ODSR = driverMap;				// on Duet M all step pins are on port B
 #elif defined(DUET_M)
 	PIOC->PIO_ODSR = driverMap;				// on Duet M all step pins are on port C
 #elif defined(DUET_06_085)
@@ -1301,6 +1317,8 @@ inline OutputBuffer *Platform::GetAuxGCodeReply()
 	// TODO
 #elif defined(DUET_NG)
 	PIOD->PIO_ODSR = 0;						// on Duet WiFi all step pins are on port D
+#elif defined(EINSY)
+	PIOB->PIO_ODSR = 0;						// on Duet M all step pins are on port B
 #elif defined(DUET_M)
 	PIOC->PIO_ODSR = 0;						// on Duet M all step pins are on port C
 #elif defined(DUET_06_085)
