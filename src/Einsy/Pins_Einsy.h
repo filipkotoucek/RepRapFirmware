@@ -37,19 +37,19 @@ constexpr size_t NumFirmwareUpdateModules = 4;		// 3 modules, plus one for manua
 
 // The physical capabilities of the machine
 
-constexpr size_t DRIVES = 5;						// The maximum number of drives supported by the electronics
-constexpr size_t MaxSmartDrivers = 5;				// The maximum number of smart drivers
-#define DRIVES_(a,b,c,d,e) { a,b,c,d,e }
+constexpr size_t DRIVES = 4;						// The maximum number of drives supported by the electronics
+constexpr size_t MaxSmartDrivers = 4;				// The maximum number of smart drivers
+#define DRIVES_(a,b,c,d) { a,b,c,d }
 
-constexpr size_t Heaters = 4;						// The number of heaters in the machine; 0 is the heated bed even if there isn't one
-#define HEATERS_(a,b,c,d) { a,b,c,d }
+constexpr size_t Heaters =2;						// The number of heaters in the machine; 0 is the heated bed even if there isn't one
+#define HEATERS_(a,b) { a,b }
 
-constexpr size_t NumExtraHeaterProtections = 4;		// The number of extra heater protection instances
+constexpr size_t NumExtraHeaterProtections = 2;		// The number of extra heater protection instances
 
 constexpr size_t MinAxes = 3;						// The minimum and default number of axes
-constexpr size_t MaxAxes = 5;						// The maximum number of movement axes in the machine, usually just X, Y and Z, <= DRIVES
+constexpr size_t MaxAxes = 4;						// The maximum number of movement axes in the machine, usually just X, Y and Z, <= DRIVES
 // Initialization macro used in statements needing to initialize values in arrays of size MAX_AXES
-#define AXES_(a,b,c,d,e) { a,b,c,d,e }
+#define AXES_(a,b,c,d) { a,b,c,d }
 
 constexpr size_t MaxExtruders = DRIVES - MinAxes;	// The maximum number of extruders
 constexpr size_t MaxDriversPerAxis = 1;				// The maximum number of stepper drivers assigned to one axis
@@ -68,22 +68,22 @@ constexpr size_t NUM_SERIAL_CHANNELS = 2;			// The number of serial IO channels 
 
 // DRIVES
 constexpr Pin GlobalTmcEnablePin = 38;				// The pin that drives ENN of all TMC2660 drivers on production boards (on pre-production boards they are grounded)
-constexpr Pin ENABLE_PINS[DRIVES] = { 78, 41, 42, 49, 57 };
-constexpr Pin STEP_PINS[DRIVES] = { 70, 71, 72, 69, 68};
-constexpr Pin DIRECTION_PINS[DRIVES] = { 75, 76, 77, 01, 73 };
+constexpr Pin ENABLE_PINS[DRIVES] = { 48, 49, 50, 51 };
+constexpr Pin STEP_PINS[DRIVES] = { 42, 43, 44, 45};
+constexpr Pin DIRECTION_PINS[DRIVES] = { 52, 53, 54, 55 };
 
-constexpr Pin DueX_SG = 96;							// DueX stallguard detect pin = PE0 (was E2_STOP)
-constexpr Pin DueX_INT = 17;						// DueX interrupt pin = PA17 (was E6_STOP)
+//constexpr Pin DueX_SG = 96;							// DueX stallguard detect pin = PE0 (was E2_STOP)
+//constexpr Pin DueX_INT = 17;						// DueX interrupt pin = PA17 (was E6_STOP)
 
 // Endstops
 // RepRapFirmware only has a single endstop per axis.
 // Gcode defines if it is a max ("high end") or min ("low end") endstop and sets if it is active HIGH or LOW.
-constexpr Pin END_STOP_PINS[DRIVES] = { 46, 02, 93, 74, 48 };
-constexpr Pin DUEX_END_STOP_PINS[5] = { 200, 203, 202, 201, 213 };			// these replace endstops 5-9 if a DueX is present
+constexpr Pin END_STOP_PINS[DRIVES] = { NoPin, NoPin, NoPin };
+constexpr Pin DUEX_END_STOP_PINS[5] = { NoPin, NoPin, NoPin };			// these replace endstops 5-9 if a DueX is present
 
 // HEATERS
-constexpr Pin TEMP_SENSE_PINS[Heaters] = { 45, 47, 44, 61 }; // Thermistor pin numbers
-constexpr Pin HEAT_ON_PINS[Heaters] = { 19, 20, 16, 35 };	// Heater pin numbers (heater 7 pin TBC)
+constexpr Pin TEMP_SENSE_PINS[Heaters] = { 17, 18 }; // Thermistor pin numbers
+constexpr Pin HEAT_ON_PINS[Heaters] = { 0 , 56 };	// Heater pin numbers (heater 7 pin TBC)
 
 // Default thermistor parameters
 constexpr float BED_R25 = 100000.0;
@@ -97,45 +97,32 @@ constexpr float EXT_SHC = 0.0;
 constexpr float THERMISTOR_SERIES_RS = 4700.0;
 
 // Number of SPI temperature sensors to support
-
-#if SUPPORT_ROLAND
-
-// chrishamm's pin assignments
-constexpr size_t MaxSpiTempSensors = 2;
+constexpr size_t MaxSpiTempSensors = 1;
 
 // Digital pins the 31855s have their select lines tied to
-constexpr Pin SpiTempSensorCsPins[MaxSpiTempSensors] = { 56, 27 };
-
-#else
-
-constexpr size_t MaxSpiTempSensors = 8;
-
-// Digital pins the 31855s have their select lines tied to
-constexpr Pin SpiTempSensorCsPins[MaxSpiTempSensors] = { 28, 50, 51, 52, 24, 97, 98, 99 };	// SPI0_CS1, SPI0_CS2, CS3, CS4, CS5, CS6, CS7, CS8
-
-#endif
+constexpr Pin SpiTempSensorCsPins[MaxSpiTempSensors] = {NoPin};	// SPI0_CS1, SPI0_CS2, CS3, CS4, CS5, CS6, CS7, CS8
 
 // DHTxx data pin
-constexpr Pin DhtDataPin = 97;												// Pin CS6
+constexpr Pin DhtDataPin = 0;												// Pin CS6
 
 // Pin that controls the ATX power on/off
-constexpr Pin ATX_POWER_PIN = 79;
+constexpr Pin ATX_POWER_PIN = 2;
 
 // Analogue pin numbers
-constexpr Pin Z_PROBE_PIN = 33;												// AFE1_AD4/PC1 Z probe analog input
-constexpr Pin PowerMonitorVinDetectPin = 36;								// AFE1_AD7/PC4 Vin monitor
-constexpr Pin PowerMonitor5vDetectPin = 29;									// AFE1_AD1/PB3 5V regulator input monitor
+constexpr Pin Z_PROBE_PIN = 25;												// AFE1_AD4/PC1 Z probe analog input
+constexpr Pin PowerMonitorVinDetectPin = 0;								// AFE1_AD7/PC4 Vin monitor
+constexpr Pin PowerMonitor5vDetectPin = 0;									// AFE1_AD1/PB3 5V regulator input monitor
 
 constexpr float PowerMonitorVoltageRange = 11.0 * 3.3;						// We use an 11:1 voltage divider
 
-constexpr Pin VssaSensePin = 103;
+//constexpr Pin VssaSensePin = 0;
 
 // Digital pin number to turn the IR LED on (high) or off (low), also controls the DIAG LED
-constexpr Pin Z_PROBE_MOD_PIN = 34;
+constexpr Pin Z_PROBE_MOD_PIN = 0;
 
 // Cooling fans
-constexpr size_t NUM_FANS = 9;
-constexpr Pin COOLING_FAN_PINS[NUM_FANS] = { 55, 58, 00, 212, 207, 206, 205, 204, 215 };
+constexpr size_t NUM_FANS = 1;
+constexpr Pin COOLING_FAN_PINS[NUM_FANS] = { 1 };
 constexpr Pin COOLING_FAN_RPM_PIN = 102;									// PB6 on expansion connector
 
 // SD cards

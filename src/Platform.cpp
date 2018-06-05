@@ -448,7 +448,7 @@ void Platform::Init()
 	// Z PROBE
 	zProbeType = ZProbeType::none;				// default is to use no Z probe
 	zProbePin = Z_PROBE_PIN;
-	zProbeAdcChannel = PinToAdcChannel(zProbePin);
+	zProbeAdcChannel = PinToAdcChannel(zProbePin); //why is this here? Z-probe doesn't has to be at ADC
 	SetZProbeDefaults();
 	InitZProbe();								// this also sets up zProbeModulationPin
 

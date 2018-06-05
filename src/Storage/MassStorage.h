@@ -1,7 +1,7 @@
 #ifndef MASSSTORAGE_H
 #define MASSSTORAGE_H
 
-#include <Libraries/Fatfs_mod/ff.h>
+#include <Libraries/Fatfs/ff.h>
 #include "RepRapFirmware.h"
 #include "Pins.h"
 #include "FileWriteBuffer.h"

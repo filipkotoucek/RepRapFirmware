@@ -85,10 +85,10 @@ const int INKJET_DELAY_MICROSECONDS = 800;				// How long to wait before the nex
 #endif
 
 #if defined(EINSY)	//TODO: move this config to board dependent configuration
-const float MAX_FEEDRATES[DRIVES] = DRIVES_(100.0, 100.0, 3.0, 20.0, 20.0);							// mm/sec
-const float ACCELERATIONS[DRIVES] = DRIVES_(500.0, 500.0, 20.0, 250.0, 250.0);						// mm/sec^2
-const float DRIVE_STEPS_PER_UNIT[DRIVES] = DRIVES_(87.4890, 87.4890, 4000.0, 420.0, 420.0);			// steps/mm
-const float INSTANT_DVS[DRIVES] = DRIVES_(15.0, 15.0, 0.2, 2.0, 2.0);								// mm/sec
+const float MAX_FEEDRATES[DRIVES] = DRIVES_(100.0, 100.0, 3.0, 20.0);							// mm/sec
+const float ACCELERATIONS[DRIVES] = DRIVES_(500.0, 500.0, 20.0, 250.0);						// mm/sec^2
+const float DRIVE_STEPS_PER_UNIT[DRIVES] = DRIVES_(87.4890, 87.4890, 4000.0, 420.0);			// steps/mm
+const float INSTANT_DVS[DRIVES] = DRIVES_(15.0, 15.0, 0.2, 2.0);								// mm/sec
 #else
 const float MAX_FEEDRATES[DRIVES] = DRIVES_(100.0, 100.0, 3.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0);							// mm/sec
 const float ACCELERATIONS[DRIVES] = DRIVES_(500.0, 500.0, 20.0, 250.0, 250.0, 250.0, 250.0, 250.0, 250.0, 250.0, 250.0, 250.0);					// mm/sec^2
@@ -98,8 +98,8 @@ const float INSTANT_DVS[DRIVES] = DRIVES_(15.0, 15.0, 0.2, 2.0, 2.0, 2.0, 2.0, 2
 // AXES
 
 #if defined(EINSY)	//TODO: move this config to board dependent configuration
-const float AXIS_MINIMA[MaxAxes] = AXES_(0.0, 0.0, 0.0, 0.0, 0.0);				// mm
-const float AXIS_MAXIMA[MaxAxes] = AXES_(230.0, 210.0, 200.0, 0.0, 0.0);		// mm
+const float AXIS_MINIMA[MaxAxes] = AXES_(0.0, 0.0, 0.0, 0.0);				// mm
+const float AXIS_MAXIMA[MaxAxes] = AXES_(230.0, 210.0, 200.0, 0.0);		// mm
 #else
 const float AXIS_MINIMA[MaxAxes] = AXES_(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);				// mm
 const float AXIS_MAXIMA[MaxAxes] = AXES_(230.0, 210.0, 200.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);		// mm
@@ -235,7 +235,7 @@ public:
 	void Init(uint16_t val) volatile
 	{
 		irqflags_t flags = cpu_irq_save();
-		sum = (uint32_t)val * (uint32_t)numAveraged;
+		sum = (uint32_t)val * (uint32_t)numAveraged;	//TODO what is this doing here?
 		index = 0;
 		isValid = false;
 		for (size_t i = 0; i < numAveraged; ++i)
